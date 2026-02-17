@@ -6,7 +6,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { content, questionCount = 7, difficulty = "mixed" } = body;
+    const { content, questionCount = 7, difficulty = "mixed" } = body as { content: string; questionCount: number; difficulty: "easy"|"medium"|"hard"|"mixed" };
 
     if (!content?.trim()) return NextResponse.json({ error: "No content provided" }, { status: 400 });
 
