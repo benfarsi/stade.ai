@@ -841,7 +841,7 @@ export default function Home() {
                 <div className="setting-group">
                   <div className="setting-label">Questions</div>
                   <div className="slider-wrap">
-                    <input type="range" className="slider" min={3} max={15} value={questionCount}
+                    <input type="range" className="slider" min={3} max={25} value={questionCount}
                       onChange={e => setQuestionCount(Number(e.target.value))} />
                     <span className="slider-val">{questionCount}</span>
                   </div>
