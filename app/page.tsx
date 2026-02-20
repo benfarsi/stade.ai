@@ -11,7 +11,7 @@ type MCState = { selected: string | null; locked: boolean };
 type SAState = { userAnswer: string; grading: boolean; result: { score: number; isCorrect: boolean; feedback: string } | null };
 type Tab = "summary"|"flashcards"|"quiz"|"weakspots";
 type Difficulty = "easy"|"medium"|"hard"|"mixed";
-type InputTab = "pdf"|"youtube"|"text";
+type InputTab = "file"|"url"|"text";
 type TimerOption = 0|600|1200|1800;
 
 type AttemptRecord = { date: string; score: number; max: number };
@@ -106,14 +106,14 @@ const DIFF_BG: Record<string, string> = { easy: "#DCFCE7", medium: "#FEF3C7", ha
 
 export default function Home() {
   const [content, setContent] = useState("");
-  const [contentSource, setContentSource] = useState<"pdf"|"text"|"youtube"|"">("");
+  const [contentSource, setContentSource] = useState<"pdf"|"image"|"text"|"url"|"">("");
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [inputTab, setInputTab] = useState<InputTab>("pdf");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [fetchingTranscript, setFetchingTranscript] = useState(false);
+  const [inputTab, setInputTab] = useState<InputTab>("file");
+  const [urlInput, setUrlInput] = useState("");
+  const [fetchingUrl, setFetchingUrl] = useState(false);
 
   const [questionCount, setQuestionCount] = useState(7);
   const [difficulty, setDifficulty] = useState<Difficulty>("mixed");
@@ -407,7 +407,9 @@ export default function Home() {
   }
 
   async function processFile(file: File) {
-    if (!file.type.includes("pdf")) { setUploadError("Please upload a PDF file."); return; }
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf");
+    if (!isImage && !isPdf) { setUploadError("Please upload a PDF or image file (PNG, JPG, WEBP)."); return; }
     setUploading(true); setSummary(null); setQuestions(null); setHasGenerated(false);
     setUploadError(""); setContent(""); setFileName(file.name);
     const formData = new FormData();
@@ -416,8 +418,8 @@ export default function Home() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok || !data.text) { setUploadError(data.error || "Failed to extract text"); setContentSource(""); setFileName(""); }
-      else { setContent(data.text); setContentSource("pdf"); }
-    } catch { setUploadError("Error uploading PDF."); setContentSource(""); setFileName(""); }
+      else { setContent(data.text); setContentSource(isImage ? "image" : "pdf"); }
+    } catch { setUploadError("Error processing file."); setContentSource(""); setFileName(""); }
     setUploading(false);
   }
 
@@ -427,19 +429,21 @@ export default function Home() {
     if (file) processFile(file);
   }
 
-  async function fetchTranscript() {
-    if (!youtubeUrl.trim()) return;
-    setFetchingTranscript(true); setUploadError(""); setContent(""); setContentSource("");
+  async function fetchUrl() {
+    if (!urlInput.trim()) return;
+    const isYoutube = /youtube\.com|youtu\.be/.test(urlInput);
+    setFetchingUrl(true); setUploadError(""); setContent(""); setContentSource("");
     try {
-      const res = await fetch("/api/transcript", {
+      const endpoint = isYoutube ? "/api/transcript" : "/api/fetch-url";
+      const res = await fetch(endpoint, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: youtubeUrl }),
+        body: JSON.stringify({ url: urlInput }),
       });
       const data = await res.json();
-      if (!res.ok || !data.text) { setUploadError(data.error || "Failed to fetch transcript."); }
-      else { setContent(data.text); setContentSource("youtube"); }
-    } catch { setUploadError("Error fetching transcript."); }
-    setFetchingTranscript(false);
+      if (!res.ok || !data.text) { setUploadError(data.error || "Failed to fetch content."); }
+      else { setContent(data.text); setContentSource("url"); }
+    } catch { setUploadError("Error fetching URL."); }
+    setFetchingUrl(false);
   }
 
   function clearAll() {
@@ -447,7 +451,7 @@ export default function Home() {
     setSummary(null); setQuestions(null); setHasGenerated(false); setQuizDone(false);
     setCurrentSession(null); setCardIndex(0); setCardFlipped(false);
     setStreamProgress(0); setStreamingTitle(""); setReviewMode(false);
-    setYoutubeUrl(""); setFetchingTranscript(false); setInputTab("pdf");
+    setUrlInput(""); setFetchingUrl(false); setInputTab("file");
     setTimeLeft(0); setTimerActive(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
@@ -1038,23 +1042,23 @@ export default function Home() {
 
               {/* Input source tabs */}
               <div className="input-src-tabs">
-                {(["pdf","youtube","text"] as InputTab[]).map(t => (
+                {(["file","url","text"] as InputTab[]).map(t => (
                   <button key={t} className={`input-src-tab${inputTab === t ? " active" : ""}`}
-                    onClick={() => { setInputTab(t); if (content && contentSource && contentSource !== t) clearAll(); }}>
-                    {t === "pdf" ? "PDF" : t === "youtube" ? "YouTube" : "Text"}
+                    onClick={() => { setInputTab(t); if (content && contentSource) clearAll(); }}>
+                    {t === "file" ? "File" : t === "url" ? "URL" : "Text"}
                   </button>
                 ))}
               </div>
 
-              {/* PDF */}
-              {inputTab === "pdf" && (
+              {/* File (PDF + Image) */}
+              {inputTab === "file" && (
                 <>
                   <div className={`dropzone${dragOver ? " active" : ""}`}
                     onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                     onDragLeave={() => setDragOver(false)}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}>
-                    <input ref={fileInputRef} type="file" accept="application/pdf"
+                    <input ref={fileInputRef} type="file" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }}
                       style={{ display: "none" }} />
                     <div className="dz-icon">
@@ -1063,10 +1067,10 @@ export default function Home() {
                         <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
                       </svg>
                     </div>
-                    <p className="dz-title">Drop a PDF here or click to browse</p>
-                    <p className="dz-sub">Lecture notes, textbooks, study guides</p>
+                    <p className="dz-title">Drop a PDF or image here</p>
+                    <p className="dz-sub">PDF, PNG, JPG, WEBP — lecture notes, slides, textbook pages</p>
                   </div>
-                  {uploading && <div className="status info"><div className="spinner"></div>Extracting text from PDF…</div>}
+                  {uploading && <div className="status info"><div className="spinner"></div>{fileName.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? "Reading image with AI…" : "Extracting text from PDF…"}</div>}
                   {uploadError && !uploading && (
                     <div className={`status ${uploadError.includes("scanned") ? "warn" : "error"}`} style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1078,48 +1082,48 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                  {content && contentSource === "pdf" && !uploading && (
+                  {content && (contentSource === "pdf" || contentSource === "image") && !uploading && (
                     <div className="status success">
                       <span className="status-dot"></span>
-                      📄 {fileName} · {(content.length / 1000).toFixed(1)}k chars loaded
+                      {contentSource === "image" ? "🖼" : "📄"} {fileName} · {(content.length / 1000).toFixed(1)}k chars loaded
                       <button className="x-btn" onClick={clearAll}>✕</button>
                     </div>
                   )}
                 </>
               )}
 
-              {/* YouTube */}
-              {inputTab === "youtube" && (
+              {/* URL (web pages + YouTube) */}
+              {inputTab === "url" && (
                 <>
                   <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                     <input type="url" className="yt-input"
-                      placeholder="https://youtube.com/watch?v=…"
-                      value={youtubeUrl}
-                      disabled={fetchingTranscript || contentSource === "youtube"}
-                      onChange={e => setYoutubeUrl(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") fetchTranscript(); }}
+                      placeholder="youtube.com/watch?v=… or any webpage URL"
+                      value={urlInput}
+                      disabled={fetchingUrl || contentSource === "url"}
+                      onChange={e => setUrlInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") fetchUrl(); }}
                     />
                     <button className="sa-submit" style={{ whiteSpace: "nowrap", flexShrink: 0 }}
-                      onClick={fetchTranscript}
-                      disabled={!youtubeUrl.trim() || fetchingTranscript || contentSource === "youtube"}>
-                      {fetchingTranscript ? "Loading…" : "Load →"}
+                      onClick={fetchUrl}
+                      disabled={!urlInput.trim() || fetchingUrl || contentSource === "url"}>
+                      {fetchingUrl ? "Loading…" : "Load →"}
                     </button>
                   </div>
-                  {uploadError && inputTab === "youtube" && (
+                  {uploadError && inputTab === "url" && (
                     <div className="status error" style={{ marginBottom: 12 }}>
                       <span className="status-dot"></span>{uploadError}
                       <button className="x-btn" onClick={() => setUploadError("")}>✕</button>
                     </div>
                   )}
-                  {content && contentSource === "youtube" && (
+                  {content && contentSource === "url" && (
                     <div className="status success">
                       <span className="status-dot"></span>
-                      ▶ Transcript loaded · {(content.length / 1000).toFixed(1)}k chars
+                      🔗 Loaded · {(content.length / 1000).toFixed(1)}k chars
                       <button className="x-btn" onClick={clearAll}>✕</button>
                     </div>
                   )}
                   {!content && !uploadError && (
-                    <p style={{ fontSize: 12, color: "#bbb" }}>Paste any YouTube URL. Works on videos with captions enabled.</p>
+                    <p style={{ fontSize: 12, color: "#bbb" }}>Paste a YouTube URL, Wikipedia page, article, or any webpage.</p>
                   )}
                 </>
               )}
@@ -1133,7 +1137,7 @@ export default function Home() {
                 />
               )}
 
-              <button className="btn btn-primary" onClick={generateAll} disabled={isLoading || !content || uploading || fetchingTranscript}>
+              <button className="btn btn-primary" onClick={generateAll} disabled={isLoading || !content || uploading || fetchingUrl}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                 </svg>
