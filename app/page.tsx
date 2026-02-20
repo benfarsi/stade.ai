@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 type MCQuestion = { question: string; options: string[]; answer: string; difficulty: "easy"|"medium"|"hard" };
 type SAQuestion = { question: string; answer: string; difficulty: "easy"|"medium"|"hard" };
 type Questions = { multiple_choice: MCQuestion[]; short_answer: SAQuestion[] };
-type Summary = { title: string; overview: string; key_points: string[]; concepts: { term: string; definition: string }[]; quick_facts: string[] };
+type Summary = { title: string; overview: string; key_points: string[]; concepts: { term: string; definition: string }[]; quick_facts: string[]; exam_tips: string[] };
 type MCState = { selected: string | null; locked: boolean };
 type SAState = { revealed: boolean; graded: "correct"|"wrong"|null };
 type Tab = "summary"|"quiz"|"weakspots";
@@ -619,6 +619,16 @@ export default function Home() {
                           <p className="sum-label">Quick Facts</p>
                           {summary.quick_facts.map((f, i) => (
                             <div key={i} className="fact"><span>⚡</span><span>{f}</span></div>
+                          ))}
+                        </div>
+                      )}
+                      {summary.exam_tips?.length > 0 && (
+                        <div className="sum-section">
+                          <p className="sum-label">Exam Tips</p>
+                          {summary.exam_tips.map((t, i) => (
+                            <div key={i} className="fact" style={{ background: "#FFFBEB", borderColor: "#FDE68A", color: "#92400E" }}>
+                              <span>🎯</span><span>{t}</span>
+                            </div>
                           ))}
                         </div>
                       )}

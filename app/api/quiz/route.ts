@@ -17,22 +17,24 @@ export async function POST(req: NextRequest) {
     const {
       content,
       questionCount = 7,
-      difficulty = "mixed",
+      difficulty: rawDifficulty = "mixed",
       summaryId = null,
       save = true,
     } = body;
+    const difficulty = rawDifficulty as "easy" | "medium" | "hard" | "mixed";
 
     if (!content?.trim()) return NextResponse.json({ error: "No content provided" }, { status: 400 });
 
     const mcCount = Math.round(questionCount * 0.6);
     const saCount = questionCount - mcCount;
 
-    const difficultyGuide = {
+    const difficultyGuides: Record<"easy" | "medium" | "hard" | "mixed", string> = {
       easy: "Questions should test basic recall and definitions.",
       medium: "Questions should test understanding and application of concepts.",
       hard: "Questions should test deep understanding and require synthesizing multiple concepts.",
       mixed: "Mix of easy recall, medium understanding, and hard synthesis questions.",
-    }[difficulty] || "Mix of difficulties.";
+    };
+    const difficultyGuide = difficultyGuides[difficulty] ?? "Mix of difficulties.";
 
     const prompt = `You are an expert exam writer used by top universities. Create high-quality exam questions based ONLY on the material provided. Questions must be specific, meaningful, and actually test understanding — not surface-level trivia.
 
@@ -89,6 +91,7 @@ ${content.slice(0, 14000)}
       const totalQuestions = (structured.multiple_choice?.length ?? 0) + (structured.short_answer?.length ?? 0);
       const { data, error } = await supabase!
         .from("quizzes")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert({
           user_id: user!.id,
           summary_id: summaryId,
@@ -97,12 +100,13 @@ ${content.slice(0, 14000)}
           multiple_choice: structured.multiple_choice,
           short_answer: structured.short_answer,
           question_count: totalQuestions,
+          is_public: false,
           share_token: nanoid(12),
-        })
+        } as any)
         .select("id")
         .single();
 
-      if (!error) savedId = data?.id ?? null;
+      if (!error) savedId = (data as any)?.id ?? null;
     }
 
     return NextResponse.json({ result: structured, savedId });
