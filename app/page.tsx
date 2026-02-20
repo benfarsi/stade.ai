@@ -11,6 +11,8 @@ type MCState = { selected: string | null; locked: boolean };
 type SAState = { userAnswer: string; grading: boolean; result: { score: number; isCorrect: boolean; feedback: string } | null };
 type Tab = "summary"|"flashcards"|"quiz"|"weakspots";
 type Difficulty = "easy"|"medium"|"hard"|"mixed";
+type InputTab = "pdf"|"youtube"|"text";
+type TimerOption = 0|600|1200|1800;
 
 type AttemptRecord = { date: string; score: number; max: number };
 type WeakQuestion = { question: string; type: "mc"|"sa"; wrongCount: number; lastSeen: string };
@@ -78,11 +80,14 @@ const DIFF_BG: Record<string, string> = { easy: "#DCFCE7", medium: "#FEF3C7", ha
 
 export default function Home() {
   const [content, setContent] = useState("");
-  const [contentSource, setContentSource] = useState<"pdf"|"text"|"">("");
+  const [contentSource, setContentSource] = useState<"pdf"|"text"|"youtube"|"">("");
   const [fileName, setFileName] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [inputTab, setInputTab] = useState<InputTab>("pdf");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [fetchingTranscript, setFetchingTranscript] = useState(false);
 
   const [questionCount, setQuestionCount] = useState(7);
   const [difficulty, setDifficulty] = useState<Difficulty>("mixed");
@@ -102,6 +107,9 @@ export default function Home() {
   const [mcStates, setMcStates] = useState<MCState[]>([]);
   const [saStates, setSaStates] = useState<SAState[]>([]);
   const [quizDone, setQuizDone] = useState(false);
+  const [timerSetting, setTimerSetting] = useState<TimerOption>(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -149,6 +157,25 @@ export default function Home() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [tab, quizDone, mcStates, questions]);
+
+  // Countdown timer — auto-submits when time runs out
+  useEffect(() => {
+    if (!timerActive || timeLeft <= 0) return;
+    const id = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(id);
+          setTimerActive(false);
+          setMcStates(ms => ms.map(s => s.locked ? s : { selected: null, locked: true }));
+          setSaStates(ss => ss.map(s => s.result ? s : { ...s, result: { score: 0, isCorrect: false, feedback: "Time expired." } }));
+          setQuizDone(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerActive, timeLeft]);
 
   const concepts = summary?.concepts || [];
   const reviewConcepts = reviewMode
@@ -366,11 +393,28 @@ export default function Home() {
     if (file) processFile(file);
   }
 
+  async function fetchTranscript() {
+    if (!youtubeUrl.trim()) return;
+    setFetchingTranscript(true); setUploadError(""); setContent(""); setContentSource("");
+    try {
+      const res = await fetch("/api/transcript", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: youtubeUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.text) { setUploadError(data.error || "Failed to fetch transcript."); }
+      else { setContent(data.text); setContentSource("youtube"); }
+    } catch { setUploadError("Error fetching transcript."); }
+    setFetchingTranscript(false);
+  }
+
   function clearAll() {
     setContent(""); setContentSource(""); setFileName(""); setUploadError("");
     setSummary(null); setQuestions(null); setHasGenerated(false); setQuizDone(false);
     setCurrentSession(null); setCardIndex(0); setCardFlipped(false);
     setStreamProgress(0); setStreamingTitle(""); setReviewMode(false);
+    setYoutubeUrl(""); setFetchingTranscript(false); setInputTab("pdf");
+    setTimeLeft(0); setTimerActive(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -438,6 +482,7 @@ export default function Home() {
     setMcStates(questions.multiple_choice.map(() => ({ selected: null, locked: false })));
     setSaStates(questions.short_answer.map(() => ({ userAnswer: "", grading: false, result: null })));
     setQuizDone(false);
+    if (timerSetting > 0) { setTimeLeft(timerSetting); setTimerActive(true); }
   }
 
   const isLoading = loadingSummary || loadingQuiz;
@@ -509,6 +554,13 @@ export default function Home() {
         .diff-btn.active.medium { background: #fffbeb; border-color: #fde68a; color: #92400e; }
         .diff-btn.active.hard { background: #fff5f5; border-color: #fca5a5; color: #9b1c1c; }
         .diff-btn.active.mixed { background: #f5f5ff; border-color: #c7d2fe; color: #3730a3; }
+        .input-src-tab { padding: 8px 14px; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: none; color: #bbb; letter-spacing: 0.04em; text-transform: uppercase; transition: all 0.15s; }
+        .input-src-tab.active { color: #111; border-bottom-color: #111; }
+        .input-src-tab:hover:not(.active) { color: #666; }
+        .yt-input { flex: 1; padding: 10px 12px; border: 1px solid #e8e8e8; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #111; background: #fafafa; outline: none; transition: border-color 0.15s; }
+        .yt-input:focus { border-color: #111; background: #fff; }
+        .yt-input:disabled { opacity: 0.45; }
+        .yt-input::placeholder { color: #ccc; }
 
         .dropzone { border: 1px dashed #ddd; border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; transition: border-color 0.15s; margin-bottom: 16px; }
         .dropzone:hover, .dropzone.active { border-color: #5B6AF0; }
@@ -588,6 +640,7 @@ export default function Home() {
         .progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .prog-label { font-size: 10px; font-weight: 600; color: #ccc; letter-spacing: 0.07em; text-transform: uppercase; }
         .prog-count { font-size: 12px; font-weight: 600; color: #aaa; }
+        .timer-display { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
         .prog-bar { height: 2px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
         .prog-fill { height: 100%; background: #111; border-radius: 99px; transition: width 0.4s ease; }
         .q-section { padding: 24px 36px; border-bottom: 1px solid #f5f5f5; }
@@ -749,6 +802,10 @@ export default function Home() {
         html.dark .act-btn { background: #1a1a1a; border-color: #272727; color: #ccc; }
         html.dark .act-btn.dark { background: #e0e0e0; color: #111; border-color: #e0e0e0; }
         html.dark .diff-btn { background: #1a1a1a; border-color: #272727; color: #555; }
+        html.dark .input-src-tab { color: #444; }
+        html.dark .input-src-tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
+        html.dark .yt-input { background: #1a1a1a; border-color: #272727; color: #e0e0e0; }
+        html.dark .yt-input:focus { border-color: #e0e0e0; background: #1e1e1e; }
         html.dark .slider { background: #272727; }
         html.dark .slider::-webkit-slider-thumb { background: #e0e0e0; }
         html.dark .divider-line { background: #272727; }
@@ -864,54 +921,116 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-              </div>
-
-              <div className={`dropzone${dragOver ? " active" : ""}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}>
-                <input ref={fileInputRef} type="file" accept="application/pdf"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }}
-                  style={{ display: "none" }} />
-                <div className="dz-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6AF0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-                  </svg>
-                </div>
-                <p className="dz-title">Drop a PDF here or click to browse</p>
-                <p className="dz-sub">Lecture notes, textbooks, study guides</p>
-              </div>
-
-              {uploading && <div className="status info"><div className="spinner"></div>Extracting text from PDF…</div>}
-              {uploadError && !uploading && (
-                <div className={`status ${uploadError.includes("scanned") ? "warn" : "error"}`} style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="status-dot"></span>
-                    <span style={{ fontWeight: 700 }}>{uploadError.includes("scanned") ? "⚠️ Scanned PDF detected" : "Upload failed"}</span>
-                  </div>
-                  <div style={{ paddingLeft: 15, fontSize: 12.5, lineHeight: 1.7, opacity: 0.85 }}>
-                    {uploadError.split("\n").filter((l: string) => l.trim()).map((line: string, i: number) => <div key={i}>{line}</div>)}
+                <div className="setting-group">
+                  <div className="setting-label">Exam Timer</div>
+                  <div className="diff-btns">
+                    {([0, 600, 1200, 1800] as TimerOption[]).map(t => (
+                      <button key={t} className={`diff-btn${timerSetting === t ? " active mixed" : ""}`} onClick={() => setTimerSetting(t)}>
+                        {t === 0 ? "Off" : t === 600 ? "10m" : t === 1200 ? "20m" : "30m"}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-              {content && contentSource === "pdf" && !uploading && (
-                <div className="status success">
-                  <span className="status-dot"></span>
-                  📄 {fileName} · {(content.length / 1000).toFixed(1)}k chars loaded
-                  <button className="x-btn" onClick={clearAll}>✕</button>
-                </div>
+              </div>
+
+              {/* Input source tabs */}
+              <div style={{ display: "flex", borderBottom: "1px solid #f0f0f0", marginBottom: 20 }}>
+                {(["pdf","youtube","text"] as InputTab[]).map(t => (
+                  <button key={t} className={`input-src-tab${inputTab === t ? " active" : ""}`}
+                    onClick={() => { setInputTab(t); if (content && contentSource && contentSource !== t) clearAll(); }}>
+                    {t === "pdf" ? "PDF" : t === "youtube" ? "YouTube" : "Text"}
+                  </button>
+                ))}
+              </div>
+
+              {/* PDF */}
+              {inputTab === "pdf" && (
+                <>
+                  <div className={`dropzone${dragOver ? " active" : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}>
+                    <input ref={fileInputRef} type="file" accept="application/pdf"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }}
+                      style={{ display: "none" }} />
+                    <div className="dz-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B6AF0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+                      </svg>
+                    </div>
+                    <p className="dz-title">Drop a PDF here or click to browse</p>
+                    <p className="dz-sub">Lecture notes, textbooks, study guides</p>
+                  </div>
+                  {uploading && <div className="status info"><div className="spinner"></div>Extracting text from PDF…</div>}
+                  {uploadError && !uploading && (
+                    <div className={`status ${uploadError.includes("scanned") ? "warn" : "error"}`} style={{ alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="status-dot"></span>
+                        <span style={{ fontWeight: 700 }}>{uploadError.includes("scanned") ? "⚠️ Scanned PDF detected" : "Upload failed"}</span>
+                      </div>
+                      <div style={{ paddingLeft: 15, fontSize: 12.5, lineHeight: 1.7, opacity: 0.85 }}>
+                        {uploadError.split("\n").filter((l: string) => l.trim()).map((line: string, i: number) => <div key={i}>{line}</div>)}
+                      </div>
+                    </div>
+                  )}
+                  {content && contentSource === "pdf" && !uploading && (
+                    <div className="status success">
+                      <span className="status-dot"></span>
+                      📄 {fileName} · {(content.length / 1000).toFixed(1)}k chars loaded
+                      <button className="x-btn" onClick={clearAll}>✕</button>
+                    </div>
+                  )}
+                </>
               )}
 
-              <div className="divider"><div className="divider-line"></div><span className="divider-text">or paste text</span><div className="divider-line"></div></div>
-              <textarea
-                placeholder="Paste lecture notes, textbook excerpts, or any study material…"
-                value={contentSource === "pdf" ? "" : content}
-                onChange={(e) => { if (contentSource === "pdf") return; setContent(e.target.value); setContentSource(e.target.value ? "text" : ""); }}
-                disabled={contentSource === "pdf"}
-              />
-              <button className="btn btn-primary" onClick={generateAll} disabled={isLoading || !content || uploading}>
+              {/* YouTube */}
+              {inputTab === "youtube" && (
+                <>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                    <input type="url" className="yt-input"
+                      placeholder="https://youtube.com/watch?v=…"
+                      value={youtubeUrl}
+                      disabled={fetchingTranscript || contentSource === "youtube"}
+                      onChange={e => setYoutubeUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") fetchTranscript(); }}
+                    />
+                    <button className="sa-submit" style={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                      onClick={fetchTranscript}
+                      disabled={!youtubeUrl.trim() || fetchingTranscript || contentSource === "youtube"}>
+                      {fetchingTranscript ? "Loading…" : "Load →"}
+                    </button>
+                  </div>
+                  {uploadError && inputTab === "youtube" && (
+                    <div className="status error" style={{ marginBottom: 12 }}>
+                      <span className="status-dot"></span>{uploadError}
+                      <button className="x-btn" onClick={() => setUploadError("")}>✕</button>
+                    </div>
+                  )}
+                  {content && contentSource === "youtube" && (
+                    <div className="status success">
+                      <span className="status-dot"></span>
+                      ▶ Transcript loaded · {(content.length / 1000).toFixed(1)}k chars
+                      <button className="x-btn" onClick={clearAll}>✕</button>
+                    </div>
+                  )}
+                  {!content && !uploadError && (
+                    <p style={{ fontSize: 12, color: "#bbb" }}>Paste any YouTube URL. Works on videos with captions enabled.</p>
+                  )}
+                </>
+              )}
+
+              {/* Text */}
+              {inputTab === "text" && (
+                <textarea
+                  placeholder="Paste lecture notes, textbook excerpts, or any study material…"
+                  value={contentSource === "text" || contentSource === "" ? content : ""}
+                  onChange={(e) => { setContent(e.target.value); setContentSource(e.target.value ? "text" : ""); }}
+                />
+              )}
+
+              <button className="btn btn-primary" onClick={generateAll} disabled={isLoading || !content || uploading || fetchingTranscript}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                 </svg>
@@ -960,7 +1079,12 @@ export default function Home() {
                     Flashcards
                     {dueCount > 0 && <span className="tab-badge blue">{dueCount}</span>}
                   </button>
-                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => setTab("quiz")}>Practice</button>
+                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => {
+                    setTab("quiz");
+                    if (timerSetting > 0 && !timerActive && !quizDone && timeLeft === 0) {
+                      setTimeLeft(timerSetting); setTimerActive(true);
+                    }
+                  }}>Practice</button>
                   <button className={`tab-btn${tab === "weakspots" ? " active" : ""}`} onClick={() => setTab("weakspots")}>
                     Weak Spots
                     {weakQuestions.length > 0 && <span className="tab-badge">{weakQuestions.length}</span>}
@@ -1202,7 +1326,14 @@ export default function Home() {
                       <div className="quiz-header">
                         <div className="progress-row">
                           <span className="prog-label">Progress</span>
-                          <span className="prog-count">{totalAnswered} / {totalQ}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            {timerActive && timeLeft > 0 && (
+                              <span className="timer-display" style={{ color: timeLeft <= 60 ? "#ef4444" : "#aaa" }}>
+                                ⏱ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
+                              </span>
+                            )}
+                            <span className="prog-count">{totalAnswered} / {totalQ}</span>
+                          </div>
                         </div>
                         <div className="prog-bar">
                           <div className="prog-fill" style={{ width: `${totalQ > 0 ? (totalAnswered / totalQ) * 100 : 0}%` }}></div>
