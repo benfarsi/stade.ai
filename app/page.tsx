@@ -501,7 +501,8 @@ export default function Home() {
         .slider-wrap { display: flex; align-items: center; gap: 10px; }
         .slider { flex: 1; -webkit-appearance: none; appearance: none; height: 2px; border-radius: 99px; background: #eee; outline: none; cursor: pointer; }
         .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #111; cursor: pointer; }
-        .slider-val { font-size: 13px; font-weight: 700; color: #111; min-width: 20px; text-align: right; }
+        .slider-val { font-size: 11px; font-weight: 800; color: #111; letter-spacing: 0.04em; }
+        .slider-standalone-val { font-size: 13px; font-weight: 700; color: #111; min-width: 20px; text-align: right; }
         .diff-btns { display: flex; gap: 4px; }
         .diff-btn { flex: 1; padding: 6px 4px; border-radius: 6px; border: 1px solid #eee; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; background: #fafafa; color: #aaa; transition: all 0.1s; text-align: center; }
         .diff-btn.active.easy { background: #f0fdf4; border-color: #86efac; color: #166534; }
@@ -764,6 +765,12 @@ export default function Home() {
         html.dark .btn-primary { background: #e0e0e0; color: #111; }
         html.dark .sa-submit { background: #e0e0e0; color: #111; }
         html.dark .hist-count { background: #e0e0e0; color: #111; }
+        html.dark .slider-val { color: #e0e0e0; }
+        html.dark .setting-label { color: #555; }
+        html.dark .score-top p { color: #888; }
+        html.dark .quiz-cta-sub { color: #555; }
+        html.dark .fc-flip-hint { color: #555; }
+        html.dark .fc-count { color: #555; }
 
         @media (max-width: 520px) {
           .page { padding: 36px 20px 80px; }
@@ -841,11 +848,10 @@ export default function Home() {
             <div className="card">
               <div className="settings-row">
                 <div className="setting-group">
-                  <div className="setting-label">Questions</div>
+                  <div className="setting-label">Questions — <span className="slider-val">{questionCount}</span></div>
                   <div className="slider-wrap">
                     <input type="range" className="slider" min={3} max={25} value={questionCount}
                       onChange={e => setQuestionCount(Number(e.target.value))} />
-                    <span className="slider-val">{questionCount}</span>
                   </div>
                 </div>
                 <div className="setting-group">
