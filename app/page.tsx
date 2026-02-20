@@ -117,6 +117,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [generatingWeakQuiz, setGeneratingWeakQuiz] = useState(false);
 
   useEffect(() => { setSessions(getSessions()); setSrsStore(getSRSStore()); }, []);
 
@@ -131,6 +132,23 @@ export default function Home() {
     document.documentElement.classList.toggle("dark", darkMode);
     try { localStorage.setItem("stade_dark", darkMode ? "1" : "0"); } catch {}
   }, [darkMode]);
+
+  // Keyboard shortcuts: A/B/C/D or 1/2/3/4 selects the next unanswered MC question
+  useEffect(() => {
+    if (tab !== "quiz" || quizDone || !questions) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+      const qi = mcStates.findIndex(s => !s.locked);
+      if (qi === -1) return;
+      const q = questions!.multiple_choice[qi];
+      if (!q) return;
+      const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+      const idx = map[e.key.toLowerCase()];
+      if (idx !== undefined && idx < q.options.length) selectMC(qi, q.options[idx]);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tab, quizDone, mcStates, questions]);
 
   const concepts = summary?.concepts || [];
   const reviewConcepts = reviewMode
@@ -302,6 +320,29 @@ export default function Home() {
       upsertSession(session);
       setSessions(getSessions());
     }
+  }
+
+  async function generateWeakSpotQuiz() {
+    const weak = currentSession?.weakQuestions;
+    if (!weak?.length || !summary) return;
+    setGeneratingWeakQuiz(true);
+    const focusContent = `The student struggled with these specific questions and topics. Generate a targeted quiz to help them practice exactly these weak areas.\n\nWeak questions:\n${weak.map(w => `- ${w.question}`).join("\n")}\n\nContext from their study material:\n${summary.overview}\n\nKey concepts: ${summary.concepts?.map(c => `${c.term}: ${c.definition}`).join("; ").slice(0, 4000)}`;
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: focusContent, questionCount: Math.min(weak.length * 2, 10), difficulty: "hard" }),
+      });
+      const data = await res.json();
+      if (data.result) {
+        setQuestions(data.result);
+        setMcStates(data.result.multiple_choice.map(() => ({ selected: null, locked: false })));
+        setSaStates(data.result.short_answer.map(() => ({ userAnswer: "", grading: false, result: null })));
+        setQuizDone(false);
+        setTab("quiz");
+      }
+    } catch (e) { console.error(e); }
+    setGeneratingWeakQuiz(false);
   }
 
   async function processFile(file: File) {
@@ -1158,6 +1199,7 @@ export default function Home() {
                         <div className="prog-bar">
                           <div className="prog-fill" style={{ width: `${totalQ > 0 ? (totalAnswered / totalQ) * 100 : 0}%` }}></div>
                         </div>
+                        <p style={{ fontSize: 11, color: "#ccc", marginTop: 8 }}>Press A / B / C / D to answer the next multiple choice question</p>
                       </div>
 
                       {questions.multiple_choice.length > 0 && (
@@ -1235,6 +1277,7 @@ export default function Home() {
                                       </span>
                                     </div>
                                     <p className="ai-feedback">{s.result.feedback}</p>
+                                    <p style={{ fontSize: 12, color: "#666", marginTop: 8, lineHeight: 1.55 }}><strong>Model answer:</strong> {q.answer}</p>
                                     <p style={{ fontSize: 12, color: "#aaa", marginTop: 6, fontStyle: "italic" }}>Your answer: {s.userAnswer}</p>
                                   </div>
                                 )}
@@ -1259,23 +1302,24 @@ export default function Home() {
                   <div className="weak-card-content">
                     <div className="sum-label" style={{ marginBottom: 16 }}>Questions to Review</div>
                     {weakQuestions.length === 0 ? (
-                      <div className="weak-empty">🎉 No weak spots yet!<br />Complete a quiz to start tracking which questions need more practice.</div>
+                      <div className="weak-empty">No weak spots yet.<br />Complete a quiz to start tracking which questions need more practice.</div>
                     ) : (
                       <>
-                        <p style={{ fontSize: 13, color: "#999", marginBottom: 16, lineHeight: 1.5 }}>These questions have tripped you up before. Focus on these next time you study.</p>
+                        <p style={{ fontSize: 13, color: "#999", marginBottom: 16, lineHeight: 1.5 }}>These questions have tripped you up before. A targeted quiz will focus specifically on these gaps.</p>
                         {weakQuestions.map((w, i) => (
                           <div key={i} className="weak-item">
-                            <span className="weak-icon">🔁</span>
                             <div style={{ flex: 1 }}>
                               <div className="weak-q">{w.question}</div>
-                              <div style={{ fontSize: 11, color: "#aaa", marginTop: 4 }}>{w.type === "mc" ? "Multiple choice" : "Short answer"}</div>
+                              <div style={{ fontSize: 11, color: "#aaa", marginTop: 3 }}>{w.type === "mc" ? "Multiple choice" : "Short answer"} · missed {w.wrongCount}×</div>
                             </div>
-                            <span className="weak-count">✗ {w.wrongCount}×</span>
                           </div>
                         ))}
-                        <div style={{ marginTop: 16, padding: "12px 14px", background: "#F5F5FF", border: "1px solid #E0E7FF", borderRadius: 10, fontSize: 13, color: "#3730A3", lineHeight: 1.5 }}>
-                          💡 <strong>Tip:</strong> Retry the quiz focusing on these questions. They'll be removed once you answer correctly.
-                        </div>
+                        <button
+                          onClick={generateWeakSpotQuiz}
+                          disabled={generatingWeakQuiz}
+                          style={{ marginTop: 20, width: "100%", padding: "12px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: generatingWeakQuiz ? "not-allowed" : "pointer", opacity: generatingWeakQuiz ? 0.5 : 1, fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                          {generatingWeakQuiz ? <><span className="spinner" style={{ borderColor: "#fff", borderTopColor: "transparent" }}></span>Generating…</> : `Practice ${weakQuestions.length} weak spots →`}
+                        </button>
                       </>
                     )}
                   </div>
