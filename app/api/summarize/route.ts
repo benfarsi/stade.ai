@@ -43,36 +43,64 @@ Rules — be THOROUGH:
 ${content.slice(0, 14000)}
 [END MATERIAL]`;
 
-    const response = await openai.chat.completions.create({
+    const aiStream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
+      stream: true,
     });
 
-    const summary = JSON.parse(response.choices[0].message.content!);
-    await incrementAiCalls(user!.id, supabase!);
+    const encoder = new TextEncoder();
+    let fullContent = "";
 
-    let savedId: string | null = null;
-    if (save) {
-      const { data, error } = await supabase!
-        .from("summaries")
-        .insert({
-          user_id: user!.id,
-          title: summary.title,
-          source_text: content.slice(0, 25000),
-          overview: summary.overview,
-          key_points: summary.key_points,
-          concepts: summary.concepts,
-          quick_facts: summary.quick_facts,
-          share_token: nanoid(12),
-        })
-        .select("id")
-        .single();
+    const outputStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of aiStream) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            fullContent += text;
+            controller.enqueue(encoder.encode(text));
+          }
 
-      if (!error) savedId = data?.id ?? null;
-    }
+          // After all chunks collected, parse + save
+          const summary = JSON.parse(fullContent);
+          await incrementAiCalls(user!.id, supabase!);
 
-    return NextResponse.json({ summary, savedId });
+          let savedId: string | null = null;
+          if (save) {
+            const token = nanoid(12);
+            const { data, error } = await supabase!
+              .from("summaries")
+              .insert({
+                user_id: user!.id,
+                title: summary.title,
+                source_text: content.slice(0, 25000),
+                overview: summary.overview,
+                key_points: summary.key_points,
+                concepts: summary.concepts,
+                quick_facts: summary.quick_facts,
+                is_public: true,
+                share_token: token,
+              })
+              .select("id")
+              .single();
+            if (!error) savedId = data?.id ?? null;
+          }
+
+          // Send done signal with summary + savedId
+          controller.enqueue(
+            encoder.encode("\n\n__DONE__" + JSON.stringify({ summary, savedId }))
+          );
+        } catch (e) {
+          controller.enqueue(encoder.encode("\n\n__ERROR__"));
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(outputStream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Failed to generate summary" }, { status: 500 });
