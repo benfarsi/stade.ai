@@ -475,6 +475,7 @@ export default function Home() {
     if (mcStates[qi]?.locked) return;
     const newMc = mcStates.map((s, i) => i === qi ? { selected: opt, locked: true } : s);
     setMcStates(newMc); checkAllDone(newMc, saStates);
+    if (timerSetting > 0 && !timerActive && timeLeft === 0) { setTimeLeft(timerSetting); setTimerActive(true); }
   }
 
   function resetQuiz() {
@@ -554,6 +555,7 @@ export default function Home() {
         .diff-btn.active.medium { background: #fffbeb; border-color: #fde68a; color: #92400e; }
         .diff-btn.active.hard { background: #fff5f5; border-color: #fca5a5; color: #9b1c1c; }
         .diff-btn.active.mixed { background: #f5f5ff; border-color: #c7d2fe; color: #3730a3; }
+        .input-src-tabs { display: flex; border-bottom: 1px solid #f0f0f0; margin-bottom: 20px; }
         .input-src-tab { padding: 8px 14px; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; background: none; color: #bbb; letter-spacing: 0.04em; text-transform: uppercase; transition: all 0.15s; }
         .input-src-tab.active { color: #111; border-bottom-color: #111; }
         .input-src-tab:hover:not(.active) { color: #666; }
@@ -641,6 +643,10 @@ export default function Home() {
         .prog-label { font-size: 10px; font-weight: 600; color: #ccc; letter-spacing: 0.07em; text-transform: uppercase; }
         .prog-count { font-size: 12px; font-weight: 600; color: #aaa; }
         .timer-display { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }
+        .timer-picker-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .timer-picker-label { font-size: 10px; font-weight: 600; color: #ccc; letter-spacing: 0.07em; text-transform: uppercase; flex-shrink: 0; }
+        .timer-opt { padding: 4px 10px; border-radius: 6px; border: 1px solid #eee; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; background: #fafafa; color: #aaa; transition: all 0.1s; }
+        .timer-opt.active { background: #f5f5ff; border-color: #c7d2fe; color: #3730a3; }
         .prog-bar { height: 2px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
         .prog-fill { height: 100%; background: #111; border-radius: 99px; transition: width 0.4s ease; }
         .q-section { padding: 24px 36px; border-bottom: 1px solid #f5f5f5; }
@@ -825,9 +831,23 @@ export default function Home() {
         html.dark .slider-val { color: #e0e0e0; }
         html.dark .setting-label { color: #555; }
         html.dark .score-top p { color: #888; }
+        html.dark .score-sub { color: #666; }
+        html.dark .score-pill.mc { color: #818cf8; }
+        html.dark .score-pill.sa { color: #4ade80; }
+        html.dark .score-pill.best { color: #fbbf24; }
+        html.dark .score-pill.improved { color: #4ade80; }
+        html.dark .attempt-history { background: #161616; border-color: #272727; }
+        html.dark .attempt-bar.latest { background: #e0e0e0; }
+        html.dark .attempt-bar.past { background: #333; }
+        html.dark .score-num span { color: #818cf8; }
         html.dark .quiz-cta-sub { color: #555; }
         html.dark .fc-flip-hint { color: #555; }
         html.dark .fc-count { color: #555; }
+        html.dark .timer-opt { background: #1a1a1a; border-color: #272727; color: #555; }
+        html.dark .timer-opt.active { background: #1e1f3a; border-color: #4338ca; color: #818cf8; }
+        html.dark .input-src-tabs { border-bottom-color: #222; }
+        html.dark .input-src-tab { color: #444; border-bottom-color: transparent; }
+        html.dark .input-src-tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
 
         @media (max-width: 520px) {
           .page { padding: 36px 20px 80px; }
@@ -921,20 +941,10 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-                <div className="setting-group">
-                  <div className="setting-label">Exam Timer</div>
-                  <div className="diff-btns">
-                    {([0, 600, 1200, 1800] as TimerOption[]).map(t => (
-                      <button key={t} className={`diff-btn${timerSetting === t ? " active mixed" : ""}`} onClick={() => setTimerSetting(t)}>
-                        {t === 0 ? "Off" : t === 600 ? "10m" : t === 1200 ? "20m" : "30m"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               {/* Input source tabs */}
-              <div style={{ display: "flex", borderBottom: "1px solid #f0f0f0", marginBottom: 20 }}>
+              <div className="input-src-tabs">
                 {(["pdf","youtube","text"] as InputTab[]).map(t => (
                   <button key={t} className={`input-src-tab${inputTab === t ? " active" : ""}`}
                     onClick={() => { setInputTab(t); if (content && contentSource && contentSource !== t) clearAll(); }}>
@@ -1079,12 +1089,7 @@ export default function Home() {
                     Flashcards
                     {dueCount > 0 && <span className="tab-badge blue">{dueCount}</span>}
                   </button>
-                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => {
-                    setTab("quiz");
-                    if (timerSetting > 0 && !timerActive && !quizDone && timeLeft === 0) {
-                      setTimeLeft(timerSetting); setTimerActive(true);
-                    }
-                  }}>Practice</button>
+                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => setTab("quiz")}>Practice</button>
                   <button className={`tab-btn${tab === "weakspots" ? " active" : ""}`} onClick={() => setTab("weakspots")}>
                     Weak Spots
                     {weakQuestions.length > 0 && <span className="tab-badge">{weakQuestions.length}</span>}
@@ -1324,6 +1329,19 @@ export default function Home() {
                   ) : questions ? (
                     <>
                       <div className="quiz-header">
+                        {totalAnswered === 0 && !timerActive && (
+                          <div className="timer-picker-row">
+                            <span className="timer-picker-label">Timer</span>
+                            <div style={{ display: "flex", gap: 4 }}>
+                              {([0, 600, 1200, 1800] as TimerOption[]).map(t => (
+                                <button key={t} className={`timer-opt${timerSetting === t ? " active" : ""}`}
+                                  onClick={() => setTimerSetting(t)}>
+                                  {t === 0 ? "Off" : t === 600 ? "10m" : t === 1200 ? "20m" : "30m"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="progress-row">
                           <span className="prog-label">Progress</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
