@@ -69,6 +69,32 @@ function getSessions(): Session[] {
 function saveSessions(sessions: Session[]) {
   try { localStorage.setItem("stade_sessions", JSON.stringify(sessions)); } catch {}
 }
+
+function getStreak(): { date: string; count: number } {
+  try { return JSON.parse(localStorage.getItem("stade_streak") || '{"date":"","count":0}'); } catch { return { date: "", count: 0 }; }
+}
+function updateStreak(): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const s = getStreak();
+  const count = s.date === today ? s.count : s.date === yesterday ? s.count + 1 : 1;
+  try { localStorage.setItem("stade_streak", JSON.stringify({ date: today, count })); } catch {}
+  return count;
+}
+
+function checkDueNotification() {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const store = getSRSStore();
+    const sessions = getSessions();
+    let due = 0;
+    sessions.forEach(s => s.summary?.concepts?.forEach(c => {
+      const srs = store[termKey(c.term)];
+      if (srs && srs.dueDate <= Date.now()) due++;
+    }));
+    if (due > 0) new Notification("Stade — Cards due", { body: `You have ${due} flashcard${due === 1 ? "" : "s"} due for review. Keep your streak alive!`, icon: "/icon-192.png" });
+  } catch {}
+}
 function upsertSession(session: Session) {
   const all = getSessions();
   const updated = [session, ...all.filter(s => s.id !== session.id)].slice(0, 20);
@@ -123,11 +149,17 @@ export default function Home() {
   // UI
   const [darkMode, setDarkMode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [generatingWeakQuiz, setGeneratingWeakQuiz] = useState(false);
 
-  useEffect(() => { setSessions(getSessions()); setSrsStore(getSRSStore()); }, []);
+  useEffect(() => {
+    setSessions(getSessions());
+    setSrsStore(getSRSStore());
+    setStreak(getStreak().count);
+    checkDueNotification();
+  }, []);
 
   useEffect(() => {
     try {
@@ -331,6 +363,8 @@ export default function Home() {
     setLoadingQuiz(false);
     setHasGenerated(true);
     setTab("summary");
+    setStreak(updateStreak());
+    try { if ("Notification" in window && Notification.permission === "default") await Notification.requestPermission(); } catch {}
 
     if (sum) {
       const session: Session = {
@@ -730,7 +764,9 @@ export default function Home() {
         .fc-review-btn { padding: 4px 12px; border-radius: 99px; border: 1px solid #ebebeb; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.1s; background: #fafafa; color: #666; }
         .fc-review-btn.on { background: #111; border-color: #111; color: #fff; }
         .fc-dots { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
-        .fc-dot { width: 6px; height: 6px; border-radius: 50%; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+        .fc-dot { width: 6px; height: 6px; border-radius: 50%; cursor: pointer; transition: background 0.2s; flex-shrink: 0; background: #EDE9E2; }
+        .fc-dot.active { background: #5B6AF0; }
+        .streak-badge { font-size: 12px; font-weight: 700; color: #f97316; letter-spacing: 0.01em; }
         .fc-container { perspective: 1200px; cursor: pointer; width: 100%; margin-bottom: 14px; user-select: none; }
         .fc-inner { position: relative; width: 100%; height: 200px; transform-style: preserve-3d; transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
         .fc-inner.flipped { transform: rotateY(180deg); }
@@ -756,98 +792,154 @@ export default function Home() {
         .fc-nav-btn:hover { border-color: #111; color: #111; }
         .fc-empty { padding: 40px 24px; text-align: center; color: #ccc; font-size: 13px; line-height: 1.6; }
 
-        /* Dark mode */
+        /* ── Dark mode ── */
         html.dark body { background: #0d0d0d; color: #e0e0e0; }
+        /* Layout */
         html.dark .logo { color: #e0e0e0; }
-        html.dark .card, html.dark .stream-card { background: #161616; border-color: #272727; }
+        html.dark .tagline { color: #555; }
         html.dark .header-icon-btn, html.dark .history-btn { color: #555; }
         html.dark .header-icon-btn:hover, html.dark .history-btn:hover { color: #e0e0e0; }
-        html.dark .history-panel { background: #161616; border-color: #272727; }
-        html.dark .hist-header { border-bottom-color: #222; }
-        html.dark .hist-title, html.dark .hist-item-title { color: #e0e0e0; }
+        html.dark .streak-badge { color: #fb923c; }
+        /* Cards */
+        html.dark .card { background: #111111; border-color: #232323; }
+        html.dark .stream-card { background: #111111; border-color: #232323; }
+        html.dark .sum-card, html.dark .quiz-card, html.dark .weak-card, html.dark .fc-card { background: #111111; border-color: #232323; }
+        /* History panel */
+        html.dark .history-overlay { background: rgba(0,0,0,0.5); }
+        html.dark .history-panel { background: #111111; border-color: #232323; }
+        html.dark .hist-header { border-bottom-color: #1e1e1e; }
+        html.dark .hist-title { color: #e0e0e0; }
         html.dark .hist-close { color: #444; }
-        html.dark .hist-item { border-bottom-color: #1e1e1e; }
-        html.dark .hist-item:hover { background: #1a1a1a; }
-        html.dark .sum-card, html.dark .quiz-card, html.dark .weak-card, html.dark .fc-card { background: #161616; border-color: #272727; }
-        html.dark .sum-hero { border-bottom-color: #222; }
-        html.dark .sum-section { border-bottom-color: #222; }
-        html.dark .sum-title { color: #e0e0e0; }
-        html.dark .sum-overview { color: #888; }
-        html.dark .key-point { color: #888; }
-        html.dark .concept { border-bottom-color: #222; }
-        html.dark .concept-term { color: #e0e0e0; }
-        html.dark .concept-def { color: #777; }
-        html.dark .fact { color: #888; border-bottom-color: #222; }
-        html.dark .dropzone { border-color: #333; }
-        html.dark .dropzone:hover { border-color: #5B6AF0; }
-        html.dark .dz-icon { background: #1e1e1e; }
-        html.dark .dz-title { color: #ccc; }
-        html.dark textarea, html.dark .sa-input { background: #1a1a1a; border-color: #272727; color: #e0e0e0; }
-        html.dark textarea:focus, html.dark .sa-input:focus { border-color: #e0e0e0; background: #1e1e1e; }
-        html.dark .tabs { border-bottom-color: #222; }
-        html.dark .tab-btn { color: #444; }
-        html.dark .tab-btn.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
-        html.dark .tab-btn:hover:not(.active) { color: #888; }
-        html.dark .q-text { color: #e0e0e0; }
-        html.dark .opt { background: #1a1a1a; border-color: #272727; color: #999; }
-        html.dark .opt:hover:not(.locked) { border-color: #e0e0e0; color: #e0e0e0; }
-        html.dark .attempt-history { background: #1a1a1a; border-color: #222; }
-        html.dark .weak-section { border-top-color: #222; }
-        html.dark .weak-item { border-bottom-color: #222; }
-        html.dark .weak-q { color: #bbb; }
-        html.dark .quiz-header { border-bottom-color: #222; }
-        html.dark .q-section { border-bottom-color: #222; }
-        html.dark .q-block { border-bottom-color: #1e1e1e; }
-        html.dark .prog-bar { background: #272727; }
-        html.dark .prog-fill { background: #e0e0e0; }
-        html.dark .score-num { color: #e0e0e0; }
-        html.dark .fc-front { background: #161616; border-color: #272727; }
-        html.dark .fc-term { color: #e0e0e0; }
-        html.dark .fc-nav-btn { background: #1a1a1a; border-color: #272727; color: #888; }
-        html.dark .fc-nav-btn:hover { border-color: #e0e0e0; color: #e0e0e0; }
-        html.dark .act-btn { background: #1a1a1a; border-color: #272727; color: #ccc; }
-        html.dark .act-btn.dark { background: #e0e0e0; color: #111; border-color: #e0e0e0; }
-        html.dark .diff-btn { background: #1a1a1a; border-color: #272727; color: #555; }
-        html.dark .input-src-tab { color: #444; }
-        html.dark .input-src-tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
-        html.dark .yt-input { background: #1a1a1a; border-color: #272727; color: #e0e0e0; }
-        html.dark .yt-input:focus { border-color: #e0e0e0; background: #1e1e1e; }
+        html.dark .hist-item { border-bottom-color: #1a1a1a; }
+        html.dark .hist-item:hover { background: #161616; }
+        html.dark .hist-item-title { color: #d0d0d0; }
+        html.dark .hist-item-meta { color: #555; }
+        html.dark .hist-count { background: #e0e0e0; color: #111; }
+        /* Input area */
+        html.dark .setting-label { color: #444; }
+        html.dark .slider-val { color: #e0e0e0; }
         html.dark .slider { background: #272727; }
         html.dark .slider::-webkit-slider-thumb { background: #e0e0e0; }
-        html.dark .divider-line { background: #272727; }
-        html.dark .stream-bar-wrap { background: #272727; }
-        html.dark .stream-bar { background: #e0e0e0; }
-        html.dark .ai-grade-result { background: #1a1a1a; border-color: #272727; }
-        html.dark .ai-feedback { color: #999; }
-        html.dark .fc-review-btn { background: #1a1a1a; border-color: #272727; color: #888; }
-        html.dark .fc-review-btn.on { background: #e0e0e0; border-color: #e0e0e0; color: #111; }
-        html.dark .srs-btn { background: #1a1a1a; }
-        html.dark .quiz-cta { background: #1a1a1a; border-color: #272727; }
-        html.dark .quiz-cta:hover { border-color: #e0e0e0; }
-        html.dark .quiz-cta-title { color: #e0e0e0; }
+        html.dark .diff-btn { background: #1a1a1a; border-color: #272727; color: #555; }
+        html.dark .input-src-tabs { border-bottom-color: #1e1e1e; }
+        html.dark .input-src-tab { color: #444; border-bottom-color: transparent; }
+        html.dark .input-src-tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
+        html.dark .input-src-tab:hover:not(.active) { color: #888; }
+        html.dark .dropzone { border-color: #2a2a2a; background: #0f0f0f; }
+        html.dark .dropzone:hover, html.dark .dropzone.active { border-color: #5B6AF0; }
+        html.dark .dz-icon { background: #1a1a1a; }
+        html.dark .dz-title { color: #aaa; }
+        html.dark .dz-sub { color: #444; }
+        html.dark textarea, html.dark .sa-input { background: #161616; border-color: #272727; color: #e0e0e0; }
+        html.dark textarea:focus, html.dark .sa-input:focus { border-color: #555; background: #1a1a1a; }
+        html.dark textarea::placeholder, html.dark .sa-input::placeholder { color: #333; }
+        html.dark .yt-input { background: #161616; border-color: #272727; color: #e0e0e0; }
+        html.dark .yt-input:focus { border-color: #555; background: #1a1a1a; }
+        html.dark .yt-input::placeholder { color: #333; }
+        html.dark .divider-line { background: #1e1e1e; }
         html.dark .btn-primary { background: #e0e0e0; color: #111; }
-        html.dark .sa-submit { background: #e0e0e0; color: #111; }
-        html.dark .hist-count { background: #e0e0e0; color: #111; }
-        html.dark .slider-val { color: #e0e0e0; }
-        html.dark .setting-label { color: #555; }
-        html.dark .score-top p { color: #888; }
-        html.dark .score-sub { color: #666; }
+        html.dark .sa-submit { background: #333; color: #e0e0e0; border: 1px solid #444; }
+        html.dark .sa-submit:hover:not(:disabled) { background: #444; }
+        /* Streaming */
+        html.dark .stream-title { color: #e0e0e0; }
+        html.dark .stream-bar-wrap { background: #1e1e1e; }
+        html.dark .stream-bar { background: #e0e0e0; }
+        html.dark .stream-step { color: #333; }
+        html.dark .stream-step.active { color: #e0e0e0; }
+        html.dark .stream-step.active .step-dot { background: #e0e0e0; }
+        html.dark .step-dot { background: #272727; }
+        /* Tabs */
+        html.dark .tabs { border-bottom-color: #1e1e1e; }
+        html.dark .tab-btn { color: #3a3a3a; }
+        html.dark .tab-btn.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
+        html.dark .tab-btn:hover:not(.active) { color: #777; }
+        /* Study guide */
+        html.dark .sum-hero { border-bottom-color: #1e1e1e; }
+        html.dark .sum-section { border-bottom-color: #1e1e1e; }
+        html.dark .sum-title { color: #e0e0e0; }
+        html.dark .sum-overview { color: #777; }
+        html.dark .sum-label { color: #333; }
+        html.dark .key-point { color: #777; }
+        html.dark .kp-dot { background: #333; }
+        html.dark .concept { border-bottom-color: #1e1e1e; }
+        html.dark .concept-term { color: #d0d0d0; }
+        html.dark .concept-def { color: #666; }
+        html.dark .fact { color: #666; border-bottom-color: #1e1e1e; }
+        html.dark .quiz-cta { background: #161616; border-color: #272727; }
+        html.dark .quiz-cta:hover { border-color: #555; }
+        html.dark .quiz-cta-title { color: #e0e0e0; }
+        html.dark .quiz-cta-sub { color: #444; }
+        /* Flashcards */
+        html.dark .fc-front { background: #161616; border-color: #272727; }
+        html.dark .fc-back { background: #0f0f20; border-color: #1e1e4a; }
+        html.dark .fc-term { color: #e0e0e0; }
+        html.dark .fc-def { color: #a5b4fc; }
+        html.dark .fc-label { color: #333; }
+        html.dark .fc-back .fc-label { color: #4a4a8a; }
+        html.dark .fc-hint { color: #333; }
+        html.dark .fc-srs-info { color: #444; }
+        html.dark .fc-dot { background: #272727; }
+        html.dark .fc-dot.active { background: #5B6AF0; }
+        html.dark .fc-count { color: #444; }
+        html.dark .fc-review-btn { background: #1a1a1a; border-color: #272727; color: #666; }
+        html.dark .fc-review-btn.on { background: #e0e0e0; border-color: #e0e0e0; color: #111; }
+        html.dark .fc-nav-btn { background: #161616; border-color: #272727; color: #666; }
+        html.dark .fc-nav-btn:hover { border-color: #555; color: #e0e0e0; }
+        html.dark .srs-btn { background: #161616; border-color: #272727; color: #666; }
+        html.dark .srs-btn.again { background: #200f0f; border-color: #5a1a1a; color: #f87171; }
+        html.dark .srs-btn.hard { background: #201a0f; border-color: #5a3a0f; color: #fbbf24; }
+        html.dark .srs-btn.good { background: #0f0f20; border-color: #2e2e6a; color: #818cf8; }
+        html.dark .srs-btn.easy { background: #0f200f; border-color: #1a4a1a; color: #4ade80; }
+        /* Quiz */
+        html.dark .quiz-header { border-bottom-color: #1e1e1e; }
+        html.dark .prog-label { color: #333; }
+        html.dark .prog-bar { background: #1e1e1e; }
+        html.dark .prog-fill { background: #e0e0e0; }
+        html.dark .prog-count { color: #555; }
+        html.dark .timer-picker-label { color: #333; }
+        html.dark .timer-opt { background: #161616; border-color: #272727; color: #444; }
+        html.dark .timer-opt.active { background: #0f0f20; border-color: #3730a3; color: #818cf8; }
+        html.dark .q-section { border-bottom-color: #1e1e1e; }
+        html.dark .q-sec-label { color: #333; }
+        html.dark .q-block { border-bottom-color: #161616; }
+        html.dark .q-num { color: #333; }
+        html.dark .q-text { color: #d0d0d0; }
+        html.dark .opt { background: #161616; border-color: #272727; color: #777; }
+        html.dark .opt:hover:not(.locked) { border-color: #555; color: #e0e0e0; }
+        html.dark .opt-letter { color: #333; }
+        html.dark .feedback.correct { color: #4ade80; }
+        html.dark .feedback.wrong { color: #f87171; }
+        html.dark .sa-input { background: #161616; border-color: #272727; color: #d0d0d0; }
+        html.dark .ai-grade-result { background: #161616; border-color: #272727; }
+        html.dark .ai-grade-result.correct { background: #0a1f0a; border-color: #1a4a1a; }
+        html.dark .ai-grade-result.wrong { background: #1f0a0a; border-color: #4a1a1a; }
+        html.dark .ai-grade-result.partial { background: #1f1a0a; border-color: #4a3a0a; }
+        html.dark .ai-score-badge.correct { color: #4ade80; }
+        html.dark .ai-score-badge.wrong { color: #f87171; }
+        html.dark .ai-score-badge.partial { color: #fbbf24; }
+        html.dark .ai-feedback { color: #777; }
+        /* Score screen */
+        html.dark .score-num { color: #e0e0e0; }
+        html.dark .score-num span { color: #818cf8; }
+        html.dark .score-sub { color: #555; }
         html.dark .score-pill.mc { color: #818cf8; }
         html.dark .score-pill.sa { color: #4ade80; }
         html.dark .score-pill.best { color: #fbbf24; }
         html.dark .score-pill.improved { color: #4ade80; }
-        html.dark .attempt-history { background: #161616; border-color: #272727; }
+        html.dark .attempt-history { background: #111111; border-color: #1e1e1e; }
         html.dark .attempt-bar.latest { background: #e0e0e0; }
-        html.dark .attempt-bar.past { background: #333; }
-        html.dark .score-num span { color: #818cf8; }
-        html.dark .quiz-cta-sub { color: #555; }
-        html.dark .fc-flip-hint { color: #555; }
-        html.dark .fc-count { color: #555; }
-        html.dark .timer-opt { background: #1a1a1a; border-color: #272727; color: #555; }
-        html.dark .timer-opt.active { background: #1e1f3a; border-color: #4338ca; color: #818cf8; }
-        html.dark .input-src-tabs { border-bottom-color: #222; }
-        html.dark .input-src-tab { color: #444; border-bottom-color: transparent; }
-        html.dark .input-src-tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
+        html.dark .attempt-bar.past { background: #2a2a2a; }
+        html.dark .attempt-label { color: #333; }
+        html.dark .act-btn { background: #161616; border-color: #272727; color: #aaa; }
+        html.dark .act-btn:hover { opacity: 0.8; }
+        html.dark .act-btn.dark { background: #e0e0e0; color: #111; border-color: #e0e0e0; }
+        /* Weak spots */
+        html.dark .weak-section { border-top-color: #1e1e1e; }
+        html.dark .weak-title { color: #333; }
+        html.dark .weak-item { border-bottom-color: #1a1a1a; }
+        html.dark .weak-q { color: #888; }
+        html.dark .weak-card-content { background: #111111; }
+        html.dark .weak-empty { color: #333; }
 
         @media (max-width: 520px) {
           .page { padding: 36px 20px 80px; }
@@ -883,6 +975,7 @@ export default function Home() {
             <h1 className="logo">Stad<em>e</em></h1>
             <p className="tagline">Turn your notes into exam-ready questions, instantly.</p>
             <div className="header-btns">
+              {streak > 0 && <span className="streak-badge">🔥 {streak} day{streak === 1 ? "" : "s"}</span>}
               <button className="header-icon-btn" onClick={() => setDarkMode(d => !d)}>
                 {darkMode ? "Light" : "Dark"}
               </button>
@@ -1198,8 +1291,7 @@ export default function Home() {
                         <>
                           <div className="fc-dots">
                             {displayCards.map((_, i) => (
-                              <div key={i} className="fc-dot"
-                                style={{ background: i === activeCardIndex ? "#5B6AF0" : "#EDE9E2" }}
+                              <div key={i} className={`fc-dot${i === activeCardIndex ? " active" : ""}`}
                                 onClick={() => { setCardIndex(i); setCardFlipped(false); }} />
                             ))}
                           </div>
