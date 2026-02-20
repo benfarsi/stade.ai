@@ -457,8 +457,8 @@ export default function Home() {
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #fff; font-family: 'DM Sans', sans-serif; color: #111; -webkit-font-smoothing: antialiased; }
-        .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 72px 32px 100px; }
-        .container { width: 100%; max-width: 780px; }
+        .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 72px 48px 100px; }
+        .container { width: 100%; max-width: 1100px; }
 
         .header { text-align: center; margin-bottom: 56px; }
         .logo { font-family: 'Instrument Serif', serif; font-size: 68px; line-height: 1; letter-spacing: -3px; color: #111; }
