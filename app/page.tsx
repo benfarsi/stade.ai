@@ -457,14 +457,14 @@ export default function Home() {
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #fff; font-family: 'DM Sans', sans-serif; color: #111; -webkit-font-smoothing: antialiased; }
-        .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 52px 20px 80px; }
-        .container { width: 100%; max-width: 640px; }
+        .page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 72px 32px 100px; }
+        .container { width: 100%; max-width: 780px; }
 
-        .header { margin-bottom: 40px; }
-        .logo { font-family: 'Instrument Serif', serif; font-size: 52px; line-height: 1; letter-spacing: -2px; color: #111; }
+        .header { text-align: center; margin-bottom: 56px; }
+        .logo { font-family: 'Instrument Serif', serif; font-size: 68px; line-height: 1; letter-spacing: -3px; color: #111; }
         .logo em { font-style: italic; color: #5B6AF0; }
-        .tagline { font-size: 14px; color: #aaa; margin-top: 4px; margin-bottom: 14px; }
-        .header-btns { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .tagline { font-size: 15px; color: #aaa; margin-top: 6px; margin-bottom: 20px; letter-spacing: 0.01em; }
+        .header-btns { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
         .header-icon-btn { background: none; border: none; font-size: 13px; color: #aaa; cursor: pointer; padding: 0; font-family: 'DM Sans', sans-serif; font-weight: 500; }
         .header-icon-btn:hover { color: #111; }
         .history-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #aaa; cursor: pointer; padding: 0; }
@@ -493,7 +493,7 @@ export default function Home() {
         .hist-item:hover .hist-delete { opacity: 1; }
         .hist-delete:hover { color: #ef4444; }
 
-        .card { border: 1px solid #ebebeb; border-radius: 12px; padding: 24px; }
+        .card { border: 1px solid #ebebeb; border-radius: 12px; padding: 32px; }
 
         .settings-row { display: flex; gap: 16px; margin-bottom: 20px; }
         .setting-group { flex: 1; }
@@ -538,7 +538,7 @@ export default function Home() {
         .btn-primary:hover:not(:disabled) { opacity: 0.8; }
         .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .stream-card { border: 1px solid #ebebeb; border-radius: 12px; padding: 28px; }
+        .stream-card { border: 1px solid #ebebeb; border-radius: 12px; padding: 36px; }
         .stream-title { font-family: 'Instrument Serif', serif; font-size: 20px; letter-spacing: -0.3px; color: #111; margin-bottom: 20px; min-height: 26px; }
         .stream-bar-wrap { height: 2px; background: #f0f0f0; border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
         .stream-bar { height: 100%; background: #111; border-radius: 99px; transition: width 0.3s ease; }
@@ -551,8 +551,8 @@ export default function Home() {
         .stream-step.done .step-dot { background: #22c55e; }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        .results { margin-top: 20px; }
-        .tabs { display: flex; border-bottom: 1px solid #f0f0f0; margin-bottom: 24px; }
+        .results { margin-top: 28px; }
+        .tabs { display: flex; border-bottom: 1px solid #f0f0f0; margin-bottom: 28px; }
         .tab-btn { flex: 1; padding: 10px 4px; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; background: none; color: #bbb; position: relative; letter-spacing: 0.02em; text-transform: uppercase; }
         .tab-btn.active { color: #111; border-bottom-color: #111; }
         .tab-btn:hover:not(.active) { color: #666; }
@@ -560,10 +560,10 @@ export default function Home() {
         .tab-badge.blue { background: #5B6AF0; }
 
         .sum-card, .quiz-card, .weak-card, .fc-card { border: 1px solid #ebebeb; border-radius: 12px; overflow: hidden; }
-        .sum-hero { padding: 24px; border-bottom: 1px solid #f5f5f5; }
-        .sum-title { font-family: 'Instrument Serif', serif; font-size: 26px; letter-spacing: -0.4px; color: #111; margin-bottom: 10px; line-height: 1.2; }
-        .sum-overview { font-size: 14px; line-height: 1.75; color: #555; }
-        .sum-section { padding: 20px 24px; border-bottom: 1px solid #f5f5f5; }
+        .sum-hero { padding: 36px; border-bottom: 1px solid #f5f5f5; }
+        .sum-title { font-family: 'Instrument Serif', serif; font-size: 30px; letter-spacing: -0.5px; color: #111; margin-bottom: 12px; line-height: 1.2; }
+        .sum-overview { font-size: 15px; line-height: 1.8; color: #555; }
+        .sum-section { padding: 24px 36px; border-bottom: 1px solid #f5f5f5; }
         .sum-section:last-child { border-bottom: none; }
         .sum-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ccc; margin-bottom: 12px; }
         .key-point { display: flex; gap: 12px; margin-bottom: 10px; font-size: 14px; line-height: 1.65; color: #333; }
@@ -575,7 +575,7 @@ export default function Home() {
         .concept-def { font-size: 13px; color: #666; line-height: 1.55; }
         .fact { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #444; line-height: 1.55; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #f5f5f5; }
         .fact:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-        .quiz-cta { margin: 20px 24px 24px; padding: 14px 18px; background: #fafafa; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border: 1px solid #ebebeb; width: calc(100% - 48px); transition: border-color 0.15s; font-family: 'DM Sans', sans-serif; }
+        .quiz-cta { margin: 20px 36px 28px; padding: 16px 20px; background: #fafafa; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border: 1px solid #ebebeb; width: calc(100% - 72px); transition: border-color 0.15s; font-family: 'DM Sans', sans-serif; }
         .quiz-cta:hover { border-color: #111; }
         .quiz-cta-title { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 2px; }
         .quiz-cta-sub { font-size: 12px; color: #aaa; text-align: left; }
@@ -583,13 +583,13 @@ export default function Home() {
         .skeleton { background: linear-gradient(90deg, #f5f5f5 25%, #ebebeb 50%, #f5f5f5 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        .quiz-header { padding: 16px 24px; border-bottom: 1px solid #f5f5f5; }
+        .quiz-header { padding: 20px 36px; border-bottom: 1px solid #f5f5f5; }
         .progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .prog-label { font-size: 10px; font-weight: 600; color: #ccc; letter-spacing: 0.07em; text-transform: uppercase; }
         .prog-count { font-size: 12px; font-weight: 600; color: #aaa; }
         .prog-bar { height: 2px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
         .prog-fill { height: 100%; background: #111; border-radius: 99px; transition: width 0.4s ease; }
-        .q-section { padding: 20px 24px; border-bottom: 1px solid #f5f5f5; }
+        .q-section { padding: 24px 36px; border-bottom: 1px solid #f5f5f5; }
         .q-section:last-child { border-bottom: none; }
         .q-sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ccc; margin-bottom: 16px; }
         .q-block { padding: 16px 0; border-bottom: 1px solid #f8f8f8; }
@@ -627,7 +627,7 @@ export default function Home() {
         .ai-score-badge.partial { color: #92400e; }
         .ai-feedback { font-size: 13px; line-height: 1.55; color: #555; }
 
-        .score-screen { padding: 36px 24px 24px; }
+        .score-screen { padding: 48px 36px 36px; }
         .score-top { text-align: center; margin-bottom: 28px; }
         .score-emoji { font-size: 40px; margin-bottom: 8px; }
         .score-num { font-family: 'Instrument Serif', serif; font-size: 64px; line-height: 1; letter-spacing: -3px; color: #111; margin-bottom: 4px; }
@@ -649,14 +649,14 @@ export default function Home() {
         .attempt-bar.past { background: #ddd; }
         .attempt-label { font-size: 10px; color: #ccc; }
 
-        .weak-section { border-top: 1px solid #f5f5f5; padding: 20px 24px; }
+        .weak-section { border-top: 1px solid #f5f5f5; padding: 24px 36px; }
         .weak-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #ccc; margin-bottom: 14px; }
         .weak-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
         .weak-item:last-child { border-bottom: none; }
         .weak-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
         .weak-q { font-size: 13px; color: #333; line-height: 1.5; flex: 1; }
         .weak-count { font-size: 11px; font-weight: 700; color: #ef4444; flex-shrink: 0; }
-        .weak-card-content { padding: 24px; }
+        .weak-card-content { padding: 32px; }
         .weak-empty { text-align: center; padding: 36px 24px; color: #ccc; font-size: 13px; line-height: 1.6; }
 
         .score-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
@@ -664,7 +664,7 @@ export default function Home() {
         .act-btn:hover { opacity: 0.7; }
         .act-btn.dark { background: #111; color: #fff; border-color: #111; }
 
-        .fc-wrap { padding: 24px; }
+        .fc-wrap { padding: 32px; }
         .fc-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 8px; flex-wrap: wrap; }
         .fc-count { font-size: 12px; color: #bbb; }
         .fc-review-btn { padding: 4px 12px; border-radius: 99px; border: 1px solid #ebebeb; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.1s; background: #fafafa; color: #666; }
@@ -766,21 +766,23 @@ export default function Home() {
         html.dark .hist-count { background: #e0e0e0; color: #111; }
 
         @media (max-width: 520px) {
-          .page { padding: 28px 16px 72px; }
-          .logo { font-size: 40px; letter-spacing: -1.5px; }
-          .header { margin-bottom: 28px; }
+          .page { padding: 36px 20px 80px; }
+          .logo { font-size: 44px; letter-spacing: -1.5px; }
+          .header { margin-bottom: 36px; }
           .settings-row { flex-direction: column; gap: 12px; }
-          .sum-hero { padding: 18px; }
-          .sum-section { padding: 16px 18px; }
+          .card { padding: 20px; }
+          .stream-card { padding: 22px; }
+          .sum-hero { padding: 22px; }
+          .sum-section { padding: 18px 22px; }
           .sum-title { font-size: 22px; }
-          .quiz-header { padding: 14px 18px; }
-          .q-section { padding: 16px 18px; }
+          .quiz-header { padding: 16px 22px; }
+          .q-section { padding: 18px 22px; }
           .score-num { font-size: 52px; letter-spacing: -2px; }
-          .score-screen { padding: 24px 18px 18px; }
-          .weak-card-content { padding: 18px; }
-          .weak-section { padding: 16px 18px; }
-          .quiz-cta { margin: 16px 18px 18px; width: calc(100% - 36px); }
-          .fc-wrap { padding: 18px; }
+          .score-screen { padding: 28px 22px 22px; }
+          .weak-card-content { padding: 20px; }
+          .weak-section { padding: 18px 22px; }
+          .quiz-cta { margin: 16px 22px 20px; width: calc(100% - 44px); }
+          .fc-wrap { padding: 20px; }
           .fc-inner { height: 170px; }
           .fc-term { font-size: 18px; }
           .history-panel { width: 100%; }
