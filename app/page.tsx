@@ -947,14 +947,14 @@ export default function Home() {
             <div className="results">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 10 }}>
                 <div className="tabs" style={{ flex: 1 }}>
-                  <button className={`tab-btn${tab === "summary" ? " active" : ""}`} onClick={() => setTab("summary")}>Summary</button>
+                  <button className={`tab-btn${tab === "summary" ? " active" : ""}`} onClick={() => setTab("summary")}>Study Guide</button>
                   <button className={`tab-btn${tab === "flashcards" ? " active" : ""}`} onClick={() => { setTab("flashcards"); setCardFlipped(false); }}>
-                    Cards
+                    Flashcards
                     {dueCount > 0 && <span className="tab-badge blue">{dueCount}</span>}
                   </button>
-                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => setTab("quiz")}>Quiz</button>
+                  <button className={`tab-btn${tab === "quiz" ? " active" : ""}`} onClick={() => setTab("quiz")}>Practice</button>
                   <button className={`tab-btn${tab === "weakspots" ? " active" : ""}`} onClick={() => setTab("weakspots")}>
-                    Weak
+                    Weak Spots
                     {weakQuestions.length > 0 && <span className="tab-badge">{weakQuestions.length}</span>}
                   </button>
                 </div>
