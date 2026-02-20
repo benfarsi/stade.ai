@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Routes that require authentication
-const PROTECTED_ROUTES = ["/dashboard", "/history", "/settings", "/api/summaries", "/api/quizzes", "/api/study-sessions"];
+const PROTECTED_ROUTES = ["/", "/dashboard", "/history", "/settings", "/api/summaries", "/api/quizzes", "/api/study-sessions"];
 // Routes only for unauthenticated users
 const AUTH_ROUTES = ["/login", "/signup"];
 
@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
-  const isProtected = PROTECTED_ROUTES.some(r => path.startsWith(r));
+  const isProtected = PROTECTED_ROUTES.some(r => r === "/" ? path === "/" : path.startsWith(r));
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
